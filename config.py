@@ -29,3 +29,7 @@ HACKERNEWS_LIMIT = 100
 FIGURE_SIZE = (12, 6)
 DPI = 100
 
+# 데이터베이스 설정
+DB_PATH = os.path.join(DATA_DIR, 'collected_data.db')
+ENABLE_DATABASE = True  # 데이터베이스 저장 활성화 여부
+

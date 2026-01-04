@@ -5,7 +5,9 @@
 ## ✨ 주요 기능
 
 - **다중 소스 데이터 수집**: Reddit, GitHub, HackerNews 등 여러 API에서 데이터 수집
+- **데이터베이스 저장**: SQLite를 사용한 영구 데이터 저장 및 버전 관리
 - **자동화된 데이터 분석**: 수집된 데이터에 대한 통계 및 트렌드 분석
+- **데이터 비교 분석**: 이전 수집 데이터와 현재 데이터 비교 및 변화율 계산
 - **시각화**: matplotlib을 사용한 데이터 시각화
 - **데이터 저장**: JSON 및 CSV 형식으로 데이터 저장
 - **확장 가능한 구조**: 새로운 API 소스 쉽게 추가 가능
@@ -31,6 +33,12 @@ python main.py --source hackernews
 
 # 분석만 실행 (이미 수집된 데이터 사용)
 python main.py --analyze-only
+
+# 이전 데이터와 비교 분석
+python main.py --source reddit --compare
+
+# 데이터베이스 통계 조회
+python main.py --db-stats
 ```
 
 ## 📊 지원하는 데이터 소스
@@ -53,9 +61,13 @@ api-data-collector-analyzer/
 │   ├── __init__.py
 │   ├── data_analyzer.py
 │   └── visualizer.py
+├── database/               # 데이터베이스 관리 모듈
+│   ├── __init__.py
+│   └── db_manager.py
 ├── data/                   # 수집된 데이터 저장
-│   ├── raw/               # 원본 데이터
-│   └── processed/         # 처리된 데이터
+│   ├── raw/               # 원본 데이터 (JSON)
+│   ├── processed/         # 처리된 데이터
+│   └── collected_data.db  # SQLite 데이터베이스
 ├── outputs/                # 분석 결과 및 시각화
 ├── config.py              # 설정 파일
 └── requirements.txt       # 의존성 패키지
@@ -82,7 +94,16 @@ analyzer.visualize(results)
 - **통계 분석**: 평균, 중앙값, 표준편차 등 기본 통계
 - **트렌드 분석**: 시간별 트렌드 분석
 - **키워드 분석**: 자주 언급되는 키워드 추출
+- **데이터 비교**: 이전 수집 데이터와의 비교 및 변화율 계산
 - **시각화**: 차트 및 그래프 생성
+
+## 💾 데이터베이스 기능
+
+- **영구 저장**: SQLite 데이터베이스에 모든 수집 데이터 저장
+- **버전 관리**: 각 수집 작업을 세션으로 관리하여 시간별 데이터 추적
+- **비교 분석**: 두 세션 간 데이터 비교 및 변화율 계산
+- **통계 조회**: 데이터베이스에 저장된 전체 통계 정보 조회
+- **트렌드 추적**: 최근 N일간의 데이터 트렌드 조회
 
 ## 🔧 설정
 

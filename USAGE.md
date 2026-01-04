@@ -41,11 +41,24 @@ python main.py --source reddit --limit 50
 python main.py --no-visualize
 ```
 
+### 6. 이전 데이터와 비교 분석
+
+```bash
+python main.py --source reddit --compare
+```
+
+### 7. 데이터베이스 통계 조회
+
+```bash
+python main.py --db-stats
+```
+
 ## 결과 확인
 
 ### 데이터 저장 위치
 
 - **원본 데이터**: `data/raw/` - JSON 형식으로 저장
+- **데이터베이스**: `data/collected_data.db` - SQLite 데이터베이스 (영구 저장)
 - **분석 결과**: `outputs/` - JSON 형식으로 저장
 - **시각화**: `outputs/` - PNG 이미지로 저장
 
@@ -63,6 +76,71 @@ outputs/
   ├── reddit_analysis_20260104_120000.png
   ├── github_analysis_20260104_120000.png
   └── hackernews_analysis_20260104_120000.png
+```
+
+## 데이터베이스 사용하기
+
+### 데이터베이스에 저장된 데이터 조회
+
+```python
+from database import DatabaseManager
+
+db = DatabaseManager()
+
+# 최신 세션 정보 조회
+latest = db.get_latest_session('reddit')
+print(f"최신 수집 시간: {latest['collected_at']}")
+print(f"수집된 항목 수: {latest['item_count']}")
+
+# 최근 5개 세션 조회
+sessions = db.get_recent_sessions('github', limit=5)
+for session in sessions:
+    print(f"{session['collected_at']}: {session['item_count']}개")
+
+# 특정 세션의 데이터 조회
+if sessions:
+    data = db.get_session_data(sessions[0]['id'], 'github')
+    print(f"첫 번째 세션 데이터: {len(data)}개")
+```
+
+### 이전 데이터와 비교
+
+```python
+from database import DatabaseManager
+
+db = DatabaseManager()
+
+# 최근 두 세션 비교
+sessions = db.get_recent_sessions('reddit', limit=2)
+if len(sessions) >= 2:
+    comparison = db.compare_sessions('reddit', sessions[1]['id'], sessions[0]['id'])
+    print(f"데이터 수 변화: {comparison['count_change']}개")
+    print(f"평균 점수 변화: {comparison['score']['change']:.2f}")
+```
+
+### 트렌드 데이터 조회
+
+```python
+from database import DatabaseManager
+
+db = DatabaseManager()
+
+# 최근 7일간의 트렌드 데이터
+trend = db.get_trend_data('github', days=7)
+for item in trend:
+    print(f"{item['date']}: 평균 스타 {item['avg_stars']:.2f}")
+```
+
+### 전체 통계 조회
+
+```python
+from database import DatabaseManager
+
+db = DatabaseManager()
+
+stats = db.get_statistics()
+print(f"총 Reddit 게시물: {stats['total_reddit_posts']}개")
+print(f"총 GitHub 저장소: {stats['total_github_repos']}개")
 ```
 
 ## Python 코드로 사용하기
