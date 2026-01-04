@@ -41,11 +41,58 @@ python main.py --source reddit --limit 50
 python main.py --no-visualize
 ```
 
+### 6. 이전 데이터와 비교 분석
+
+```bash
+python main.py --source reddit --compare
+```
+
+### 7. 데이터베이스 통계 조회
+
+```bash
+python main.py --db-stats
+```
+
+### 8. 웹 대시보드 실행
+
+```bash
+# 기본 포트(8000)로 대시보드 실행
+python main.py --dashboard
+
+# 특정 포트로 실행
+python main.py --dashboard --dashboard-port 8080
+
+# 특정 호스트로 실행
+python main.py --dashboard --dashboard-host 127.0.0.1
+```
+
+브라우저에서 `http://localhost:8000`으로 접속하여 대시보드를 확인할 수 있습니다.
+
+### 9. 스케줄러 모드 (자동 수집)
+
+```bash
+# 매일 자정에 자동으로 수집 (기본값)
+python main.py --schedule
+
+# 매일 특정 시간에 실행
+python main.py --schedule-daily 09:00
+
+# 6시간마다 실행
+python main.py --schedule-interval 6
+
+# 특정 소스만 스케줄링
+python main.py --schedule --source reddit
+
+# 재시도 횟수 설정
+python main.py --schedule --max-retries 5
+```
+
 ## 결과 확인
 
 ### 데이터 저장 위치
 
 - **원본 데이터**: `data/raw/` - JSON 형식으로 저장
+- **데이터베이스**: `data/collected_data.db` - SQLite 데이터베이스 (영구 저장)
 - **분석 결과**: `outputs/` - JSON 형식으로 저장
 - **시각화**: `outputs/` - PNG 이미지로 저장
 
@@ -63,6 +110,182 @@ outputs/
   ├── reddit_analysis_20260104_120000.png
   ├── github_analysis_20260104_120000.png
   └── hackernews_analysis_20260104_120000.png
+```
+
+## 데이터베이스 사용하기
+
+### 데이터베이스에 저장된 데이터 조회
+
+```python
+from database import DatabaseManager
+
+db = DatabaseManager()
+
+# 최신 세션 정보 조회
+latest = db.get_latest_session('reddit')
+print(f"최신 수집 시간: {latest['collected_at']}")
+print(f"수집된 항목 수: {latest['item_count']}")
+
+# 최근 5개 세션 조회
+sessions = db.get_recent_sessions('github', limit=5)
+for session in sessions:
+    print(f"{session['collected_at']}: {session['item_count']}개")
+
+# 특정 세션의 데이터 조회
+if sessions:
+    data = db.get_session_data(sessions[0]['id'], 'github')
+    print(f"첫 번째 세션 데이터: {len(data)}개")
+```
+
+### 이전 데이터와 비교
+
+```python
+from database import DatabaseManager
+
+db = DatabaseManager()
+
+# 최근 두 세션 비교
+sessions = db.get_recent_sessions('reddit', limit=2)
+if len(sessions) >= 2:
+    comparison = db.compare_sessions('reddit', sessions[1]['id'], sessions[0]['id'])
+    print(f"데이터 수 변화: {comparison['count_change']}개")
+    print(f"평균 점수 변화: {comparison['score']['change']:.2f}")
+```
+
+### 트렌드 데이터 조회
+
+```python
+from database import DatabaseManager
+
+db = DatabaseManager()
+
+# 최근 7일간의 트렌드 데이터
+trend = db.get_trend_data('github', days=7)
+for item in trend:
+    print(f"{item['date']}: 평균 스타 {item['avg_stars']:.2f}")
+```
+
+### 전체 통계 조회
+
+```python
+from database import DatabaseManager
+
+db = DatabaseManager()
+
+stats = db.get_statistics()
+print(f"총 Reddit 게시물: {stats['total_reddit_posts']}개")
+print(f"총 GitHub 저장소: {stats['total_github_repos']}개")
+```
+
+## 웹 대시보드 사용하기
+
+### 대시보드 실행
+
+```bash
+python main.py --dashboard
+```
+
+실행 후 브라우저에서 `http://localhost:8000`으로 접속하세요.
+
+### 대시보드 기능
+
+- **통계 카드**: 각 소스별 총 데이터 수 및 세션 수 표시
+- **트렌드 차트**: 최근 7일/14일/30일간의 데이터 트렌드 시각화
+- **분포 차트**: 데이터 분포를 히스토그램으로 시각화
+- **실시간 업데이트**: 30초마다 통계 자동 업데이트
+- **소스별 탭**: Reddit, GitHub, HackerNews 각각의 전용 탭
+
+### API 엔드포인트
+
+대시보드는 RESTful API를 제공합니다:
+
+- `GET /api/stats` - 전체 통계 정보
+- `GET /api/sources/{source}/sessions` - 세션 목록
+- `GET /api/sources/{source}/trend?days=N` - 트렌드 데이터
+- `GET /api/sources/{source}/session/{session_id}` - 특정 세션 데이터
+- `GET /api/charts/{source}/trend?days=N` - 트렌드 차트 (Plotly JSON)
+- `GET /api/charts/{source}/distribution` - 분포 차트 (Plotly JSON)
+
+### Python 코드로 API 사용
+
+```python
+import requests
+
+# 통계 조회
+response = requests.get('http://localhost:8000/api/stats')
+stats = response.json()
+print(f"Reddit 게시물: {stats['total_reddit_posts']}개")
+
+# 트렌드 데이터 조회
+response = requests.get('http://localhost:8000/api/sources/reddit/trend?days=7')
+trend = response.json()
+print(f"트렌드 데이터: {len(trend)}개")
+```
+
+## 스케줄러 사용하기
+
+### 스케줄러 모드 실행
+
+스케줄러 모드는 백그라운드에서 지속적으로 실행되며, 설정한 시간에 자동으로 데이터를 수집합니다.
+
+```bash
+# 매일 자정에 모든 소스 수집
+python main.py --schedule
+
+# 매일 오전 9시에 Reddit만 수집
+python main.py --schedule-daily 09:00 --source reddit
+
+# 3시간마다 GitHub 데이터 수집
+python main.py --schedule-interval 3 --source github
+```
+
+### 스케줄러 종료
+
+스케줄러를 종료하려면 `Ctrl+C`를 누르세요. 스케줄러는 안전하게 종료되며, 현재 실행 중인 작업이 완료될 때까지 대기합니다.
+
+### 로그 확인
+
+스케줄러의 모든 작업은 `scheduler.log` 파일에 기록됩니다:
+
+```bash
+# 실시간 로그 확인 (Windows)
+Get-Content scheduler.log -Wait
+
+# 실시간 로그 확인 (Linux/Mac)
+tail -f scheduler.log
+```
+
+### Python 코드로 스케줄러 사용
+
+```python
+from scheduler import TaskScheduler
+from collectors import RedditCollector
+
+def collect_reddit_job():
+    collector = RedditCollector()
+    data = collector.collect(limit=50)
+    if data:
+        collector.save(data)
+    return data
+
+# 스케줄러 생성
+scheduler = TaskScheduler(max_retries=3)
+
+# 매일 오전 9시에 실행
+scheduler.add_daily_job(collect_reddit_job, hour=9, minute=0)
+
+# 6시간마다 실행
+scheduler.add_interval_job(collect_reddit_job, hours=6)
+
+# 스케줄러 시작
+scheduler.start()
+
+# 백그라운드에서 실행되므로 메인 스레드는 계속 실행
+try:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    scheduler.stop()
 ```
 
 ## Python 코드로 사용하기

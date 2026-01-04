@@ -29,3 +29,12 @@ HACKERNEWS_LIMIT = 100
 FIGURE_SIZE = (12, 6)
 DPI = 100
 
+# 데이터베이스 설정
+DB_PATH = os.path.join(DATA_DIR, 'collected_data.db')
+ENABLE_DATABASE = True  # 데이터베이스 저장 활성화 여부
+
+# 스케줄러 설정
+SCHEDULER_MAX_RETRIES = 3  # 최대 재시도 횟수
+SCHEDULER_RETRY_DELAY = 60  # 재시도 대기 시간 (초)
+SCHEDULER_LOG_FILE = 'scheduler.log'  # 스케줄러 로그 파일
+
