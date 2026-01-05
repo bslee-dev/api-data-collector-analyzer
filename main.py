@@ -13,7 +13,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 from collectors import RedditCollector, GitHubCollector, HackerNewsCollector
 from analyzers import DataAnalyzer, Visualizer
 from database import DatabaseManager
+from scheduler import TaskScheduler
+from scheduler.task_scheduler import create_collection_job_wrapper
 import config
+import time
+import signal
 
 
 def collect_reddit(limit=None, db_manager=None):
@@ -120,6 +124,33 @@ def main():
         help='데이터베이스 통계 조회'
     )
     
+    parser.add_argument(
+        '--schedule',
+        action='store_true',
+        help='스케줄러 모드로 실행 (백그라운드에서 주기적 수집)'
+    )
+    
+    parser.add_argument(
+        '--schedule-daily',
+        type=str,
+        metavar='HH:MM',
+        help='매일 특정 시간에 실행 (예: --schedule-daily 09:00)'
+    )
+    
+    parser.add_argument(
+        '--schedule-interval',
+        type=int,
+        metavar='HOURS',
+        help='N시간마다 실행 (예: --schedule-interval 6)'
+    )
+    
+    parser.add_argument(
+        '--max-retries',
+        type=int,
+        default=3,
+        help='최대 재시도 횟수 (기본값: 3)'
+    )
+    
     args = parser.parse_args()
     
     print("=" * 60)
@@ -155,6 +186,10 @@ def main():
         else:
             print("❌ 데이터베이스가 활성화되지 않았습니다.")
         return
+    
+    # 스케줄러 모드
+    if args.schedule or args.schedule_daily or args.schedule_interval:
+        return run_scheduler_mode(args, db_manager)
     
     if args.analyze_only:
         print("📊 분석 모드: 기존 데이터 분석")
@@ -250,6 +285,113 @@ def main():
     print(f"  - 시각화: outputs/")
     if config.ENABLE_DATABASE and db_manager:
         print(f"  - 데이터베이스: {config.DB_PATH}")
+
+
+def run_scheduler_mode(args, db_manager):
+    """스케줄러 모드 실행"""
+    print("⏰ 스케줄러 모드 시작")
+    print("=" * 60)
+    print("Ctrl+C를 눌러 종료할 수 있습니다.")
+    print("=" * 60)
+    print()
+    
+    scheduler = TaskScheduler(max_retries=args.max_retries)
+    
+    # 수집 함수 래퍼 생성
+    def collect_with_analysis(source, limit):
+        """수집 및 분석을 함께 수행하는 함수"""
+        try:
+            if source == 'reddit':
+                data = collect_reddit(limit, db_manager)
+            elif source == 'github':
+                data = collect_github(limit, db_manager)
+            elif source == 'hackernews':
+                data = collect_hackernews(limit, db_manager)
+            else:
+                return
+            
+            if data:
+                # 분석 수행
+                analyze_data(data, source)
+        except Exception as e:
+            print(f"❌ {source} 수집/분석 중 오류: {e}")
+            raise
+    
+    # 스케줄 설정
+    sources_to_schedule = []
+    if args.source == 'all':
+        sources_to_schedule = ['reddit', 'github', 'hackernews']
+    else:
+        sources_to_schedule = [args.source]
+    
+    if args.schedule_daily:
+        # 매일 특정 시간에 실행
+        try:
+            hour, minute = map(int, args.schedule_daily.split(':'))
+            print(f"📅 매일 {hour:02d}:{minute:02d}에 실행되도록 스케줄 설정")
+            for source in sources_to_schedule:
+                job_func = lambda s=source: collect_with_analysis(s, args.limit)
+                scheduler.add_daily_job(
+                    job_func,
+                    hour=hour,
+                    minute=minute,
+                    job_id=f"daily_{source}"
+                )
+        except ValueError:
+            print("❌ 시간 형식이 올바르지 않습니다. HH:MM 형식으로 입력하세요.")
+            return
+    
+    elif args.schedule_interval:
+        # 주기적으로 실행
+        print(f"⏱️  {args.schedule_interval}시간마다 실행되도록 스케줄 설정")
+        for source in sources_to_schedule:
+            job_func = lambda s=source: collect_with_analysis(s, args.limit)
+            scheduler.add_interval_job(
+                job_func,
+                hours=args.schedule_interval,
+                job_id=f"interval_{source}"
+            )
+    
+    else:
+        # 기본: 매일 자정에 실행
+        print("📅 매일 00:00에 실행되도록 스케줄 설정 (기본값)")
+        for source in sources_to_schedule:
+            job_func = lambda s=source: collect_with_analysis(s, args.limit)
+            scheduler.add_daily_job(
+                job_func,
+                hour=0,
+                minute=0,
+                job_id=f"daily_{source}"
+            )
+    
+    # 등록된 작업 목록 출력
+    jobs = scheduler.get_jobs()
+    print(f"\n✅ {len(jobs)}개의 작업이 스케줄에 등록되었습니다:")
+    for job in jobs:
+        print(f"  - {job.id}: {job.next_run_time}")
+    
+    # 스케줄러 시작
+    scheduler.start()
+    
+    # 종료 신호 처리
+    def signal_handler(sig, frame):
+        print("\n\n⏹️  스케줄러 종료 중...")
+        scheduler.stop()
+        print("✅ 스케줄러가 종료되었습니다.")
+        sys.exit(0)
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    # 백그라운드에서 실행
+    print("\n🔄 스케줄러가 백그라운드에서 실행 중입니다...")
+    print("   로그는 scheduler.log 파일에 기록됩니다.\n")
+    
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        signal_handler(None, None)
 
 
 if __name__ == '__main__':

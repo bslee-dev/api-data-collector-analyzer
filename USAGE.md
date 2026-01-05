@@ -53,6 +53,25 @@ python main.py --source reddit --compare
 python main.py --db-stats
 ```
 
+### 8. 스케줄러 모드 (자동 수집)
+
+```bash
+# 매일 자정에 자동으로 수집 (기본값)
+python main.py --schedule
+
+# 매일 특정 시간에 실행
+python main.py --schedule-daily 09:00
+
+# 6시간마다 실행
+python main.py --schedule-interval 6
+
+# 특정 소스만 스케줄링
+python main.py --schedule --source reddit
+
+# 재시도 횟수 설정
+python main.py --schedule --max-retries 5
+```
+
 ## 결과 확인
 
 ### 데이터 저장 위치
@@ -141,6 +160,72 @@ db = DatabaseManager()
 stats = db.get_statistics()
 print(f"총 Reddit 게시물: {stats['total_reddit_posts']}개")
 print(f"총 GitHub 저장소: {stats['total_github_repos']}개")
+```
+
+## 스케줄러 사용하기
+
+### 스케줄러 모드 실행
+
+스케줄러 모드는 백그라운드에서 지속적으로 실행되며, 설정한 시간에 자동으로 데이터를 수집합니다.
+
+```bash
+# 매일 자정에 모든 소스 수집
+python main.py --schedule
+
+# 매일 오전 9시에 Reddit만 수집
+python main.py --schedule-daily 09:00 --source reddit
+
+# 3시간마다 GitHub 데이터 수집
+python main.py --schedule-interval 3 --source github
+```
+
+### 스케줄러 종료
+
+스케줄러를 종료하려면 `Ctrl+C`를 누르세요. 스케줄러는 안전하게 종료되며, 현재 실행 중인 작업이 완료될 때까지 대기합니다.
+
+### 로그 확인
+
+스케줄러의 모든 작업은 `scheduler.log` 파일에 기록됩니다:
+
+```bash
+# 실시간 로그 확인 (Windows)
+Get-Content scheduler.log -Wait
+
+# 실시간 로그 확인 (Linux/Mac)
+tail -f scheduler.log
+```
+
+### Python 코드로 스케줄러 사용
+
+```python
+from scheduler import TaskScheduler
+from collectors import RedditCollector
+
+def collect_reddit_job():
+    collector = RedditCollector()
+    data = collector.collect(limit=50)
+    if data:
+        collector.save(data)
+    return data
+
+# 스케줄러 생성
+scheduler = TaskScheduler(max_retries=3)
+
+# 매일 오전 9시에 실행
+scheduler.add_daily_job(collect_reddit_job, hour=9, minute=0)
+
+# 6시간마다 실행
+scheduler.add_interval_job(collect_reddit_job, hours=6)
+
+# 스케줄러 시작
+scheduler.start()
+
+# 백그라운드에서 실행되므로 메인 스레드는 계속 실행
+try:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    scheduler.stop()
 ```
 
 ## Python 코드로 사용하기
