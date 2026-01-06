@@ -6,6 +6,8 @@
 
 - **다중 소스 데이터 수집**: Reddit, GitHub, HackerNews 등 여러 API에서 데이터 수집
 - **데이터베이스 저장**: SQLite를 사용한 영구 데이터 저장 및 버전 관리
+- **웹 대시보드**: FastAPI 기반 실시간 데이터 시각화 대시보드
+- **인터랙티브 차트**: Plotly를 사용한 인터랙티브 차트 및 그래프
 - **스케줄링 및 자동화**: APScheduler를 사용한 주기적 데이터 수집
 - **자동 재시도**: 실패 시 자동 재시도 로직으로 안정적인 데이터 수집
 - **백그라운드 실행**: 백그라운드에서 지속적으로 실행되는 스케줄러
@@ -51,6 +53,9 @@ python main.py --schedule-daily 09:00
 
 # N시간마다 실행
 python main.py --schedule-interval 6
+
+# 웹 대시보드 실행
+python main.py --dashboard
 ```
 
 ## 📊 지원하는 데이터 소스
@@ -79,6 +84,12 @@ api-data-collector-analyzer/
 ├── scheduler/               # 스케줄러 모듈
 │   ├── __init__.py
 │   └── task_scheduler.py
+├── dashboard/               # 웹 대시보드 모듈
+│   ├── __init__.py
+│   ├── app.py
+│   ├── run_server.py
+│   └── templates/
+│       └── dashboard.html
 ├── data/                   # 수집된 데이터 저장
 │   ├── raw/               # 원본 데이터 (JSON)
 │   ├── processed/         # 처리된 데이터
@@ -127,6 +138,15 @@ analyzer.visualize(results)
 - **자동 재시도**: 실패 시 최대 3회까지 자동 재시도
 - **유연한 스케줄링**: 매일 특정 시간, 주기적 간격 등 다양한 스케줄 설정
 - **로깅**: 모든 작업을 로그 파일에 기록
+
+## 🌐 웹 대시보드 기능
+
+- **실시간 시각화**: 수집된 데이터를 실시간으로 시각화
+- **인터랙티브 차트**: Plotly를 사용한 인터랙티브 차트 (줌, 팬, 호버 등)
+- **트렌드 분석**: 시간별 트렌드 차트로 데이터 변화 추적
+- **분포 분석**: 히스토그램으로 데이터 분포 시각화
+- **다중 소스 지원**: Reddit, GitHub, HackerNews 각각의 대시보드
+- **RESTful API**: JSON API를 통한 데이터 조회
 
 ## 🔧 설정
 

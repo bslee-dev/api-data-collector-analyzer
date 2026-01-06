@@ -53,7 +53,22 @@ python main.py --source reddit --compare
 python main.py --db-stats
 ```
 
-### 8. 스케줄러 모드 (자동 수집)
+### 8. 웹 대시보드 실행
+
+```bash
+# 기본 포트(8000)로 대시보드 실행
+python main.py --dashboard
+
+# 특정 포트로 실행
+python main.py --dashboard --dashboard-port 8080
+
+# 특정 호스트로 실행
+python main.py --dashboard --dashboard-host 127.0.0.1
+```
+
+브라우저에서 `http://localhost:8000`으로 접속하여 대시보드를 확인할 수 있습니다.
+
+### 9. 스케줄러 모드 (자동 수집)
 
 ```bash
 # 매일 자정에 자동으로 수집 (기본값)
@@ -160,6 +175,51 @@ db = DatabaseManager()
 stats = db.get_statistics()
 print(f"총 Reddit 게시물: {stats['total_reddit_posts']}개")
 print(f"총 GitHub 저장소: {stats['total_github_repos']}개")
+```
+
+## 웹 대시보드 사용하기
+
+### 대시보드 실행
+
+```bash
+python main.py --dashboard
+```
+
+실행 후 브라우저에서 `http://localhost:8000`으로 접속하세요.
+
+### 대시보드 기능
+
+- **통계 카드**: 각 소스별 총 데이터 수 및 세션 수 표시
+- **트렌드 차트**: 최근 7일/14일/30일간의 데이터 트렌드 시각화
+- **분포 차트**: 데이터 분포를 히스토그램으로 시각화
+- **실시간 업데이트**: 30초마다 통계 자동 업데이트
+- **소스별 탭**: Reddit, GitHub, HackerNews 각각의 전용 탭
+
+### API 엔드포인트
+
+대시보드는 RESTful API를 제공합니다:
+
+- `GET /api/stats` - 전체 통계 정보
+- `GET /api/sources/{source}/sessions` - 세션 목록
+- `GET /api/sources/{source}/trend?days=N` - 트렌드 데이터
+- `GET /api/sources/{source}/session/{session_id}` - 특정 세션 데이터
+- `GET /api/charts/{source}/trend?days=N` - 트렌드 차트 (Plotly JSON)
+- `GET /api/charts/{source}/distribution` - 분포 차트 (Plotly JSON)
+
+### Python 코드로 API 사용
+
+```python
+import requests
+
+# 통계 조회
+response = requests.get('http://localhost:8000/api/stats')
+stats = response.json()
+print(f"Reddit 게시물: {stats['total_reddit_posts']}개")
+
+# 트렌드 데이터 조회
+response = requests.get('http://localhost:8000/api/sources/reddit/trend?days=7')
+trend = response.json()
+print(f"트렌드 데이터: {len(trend)}개")
 ```
 
 ## 스케줄러 사용하기

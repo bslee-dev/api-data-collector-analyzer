@@ -151,12 +151,36 @@ def main():
         help='최대 재시도 횟수 (기본값: 3)'
     )
     
+    parser.add_argument(
+        '--dashboard',
+        action='store_true',
+        help='웹 대시보드 서버 실행'
+    )
+    
+    parser.add_argument(
+        '--dashboard-port',
+        type=int,
+        default=8000,
+        help='대시보드 서버 포트 (기본값: 8000)'
+    )
+    
+    parser.add_argument(
+        '--dashboard-host',
+        type=str,
+        default='0.0.0.0',
+        help='대시보드 서버 호스트 (기본값: 0.0.0.0)'
+    )
+    
     args = parser.parse_args()
     
     print("=" * 60)
     print("🔍 API Data Collector & Analyzer")
     print("=" * 60)
     print()
+    
+    # 대시보드 모드
+    if args.dashboard:
+        return run_dashboard(args.dashboard_host, args.dashboard_port)
     
     # 데이터베이스 관리자 초기화
     db_manager = None
@@ -392,6 +416,35 @@ def run_scheduler_mode(args, db_manager):
             time.sleep(1)
     except KeyboardInterrupt:
         signal_handler(None, None)
+
+
+def run_dashboard(host='0.0.0.0', port=8000):
+    """대시보드 서버 실행"""
+    try:
+        import uvicorn
+        from dashboard.app import create_app
+        
+        app = create_app()
+        
+        print("=" * 60)
+        print("🌐 웹 대시보드 서버 시작")
+        print("=" * 60)
+        print(f"서버 주소: http://{host}:{port}")
+        print(f"대시보드: http://{host}:{port}/")
+        print("\nCtrl+C를 눌러 서버를 종료할 수 있습니다.")
+        print("=" * 60)
+        print()
+        
+        uvicorn.run(app, host=host, port=port)
+    except ImportError:
+        print("❌ 대시보드 실행에 필요한 패키지가 설치되지 않았습니다.")
+        print("   다음 명령어로 설치하세요: pip install fastapi uvicorn jinja2 plotly")
+        return
+    except Exception as e:
+        print(f"❌ 대시보드 실행 중 오류 발생: {e}")
+        import traceback
+        traceback.print_exc()
+        return
 
 
 if __name__ == '__main__':
