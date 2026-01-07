@@ -101,18 +101,56 @@ api-data-collector-analyzer/
 
 ## 🎯 사용 예시
 
+### 기본 데이터 수집 및 분석
+
 ```python
 from collectors.reddit_collector import RedditCollector
 from analyzers.data_analyzer import DataAnalyzer
+from database import DatabaseManager
 
 # Reddit 데이터 수집
 collector = RedditCollector()
 data = collector.collect(subreddit='python', limit=100)
 
+# 데이터베이스에 저장
+db_manager = DatabaseManager()
+db_manager.save_collection(data, 'reddit')
+
 # 데이터 분석
 analyzer = DataAnalyzer()
-results = analyzer.analyze(data)
-analyzer.visualize(results)
+results = analyzer.analyze(data, source='reddit')
+analyzer.save_results(results)
+```
+
+### 스케줄러 사용
+
+```python
+from scheduler import TaskScheduler
+from collectors import RedditCollector
+
+def collect_data():
+    collector = RedditCollector()
+    data = collector.collect(limit=50)
+    return data
+
+# 스케줄러 생성 및 설정
+scheduler = TaskScheduler(max_retries=3)
+scheduler.add_daily_job(collect_data, hour=9, minute=0)
+scheduler.start()
+```
+
+### 웹 대시보드 API 사용
+
+```python
+import requests
+
+# 통계 조회
+response = requests.get('http://localhost:8000/api/stats')
+stats = response.json()
+
+# 트렌드 데이터 조회
+response = requests.get('http://localhost:8000/api/sources/reddit/trend?days=7')
+trend = response.json()
 ```
 
 ## 📈 분석 기능
@@ -147,8 +185,33 @@ analyzer.visualize(results)
 - **분포 분석**: 히스토그램으로 데이터 분포 시각화
 - **다중 소스 지원**: Reddit, GitHub, HackerNews 각각의 대시보드
 - **RESTful API**: JSON API를 통한 데이터 조회
+- **자동 업데이트**: 30초마다 통계 자동 갱신
+
+### 대시보드 실행
+
+```bash
+# 기본 포트(8000)로 실행
+python main.py --dashboard
+
+# 특정 포트로 실행
+python main.py --dashboard --dashboard-port 8080
+```
+
+브라우저에서 `http://localhost:8000`으로 접속하여 대시보드를 확인할 수 있습니다.
+
+### API 엔드포인트
+
+- `GET /api/stats` - 전체 통계 정보
+- `GET /api/sources/{source}/sessions?limit=N` - 세션 목록 조회
+- `GET /api/sources/{source}/trend?days=N` - 트렌드 데이터 조회
+- `GET /api/sources/{source}/session/{session_id}` - 특정 세션 데이터
+- `GET /api/charts/{source}/trend?days=N` - 트렌드 차트 (Plotly JSON)
+- `GET /api/charts/{source}/distribution` - 분포 차트 (Plotly JSON)
+- `GET /api/sources/{source}/compare?session_id1=X&session_id2=Y` - 세션 비교
 
 ## 🔧 설정
+
+### 환경 변수 설정
 
 `.env` 파일을 생성하여 API 키를 설정할 수 있습니다 (선택사항):
 
@@ -158,6 +221,46 @@ REDDIT_CLIENT_SECRET=your_client_secret
 GITHUB_TOKEN=your_github_token
 ```
 
+### 설정 파일 (config.py)
+
+주요 설정을 `config.py`에서 변경할 수 있습니다:
+
+- `DEFAULT_LIMIT`: 기본 수집 개수 (기본값: 100)
+- `REDDIT_SUBREDDIT`: 기본 서브레딧 (기본값: 'python')
+- `GITHUB_LANGUAGE`: 기본 프로그래밍 언어 (기본값: 'python')
+- `ENABLE_DATABASE`: 데이터베이스 저장 활성화 여부 (기본값: True)
+- `SCHEDULER_MAX_RETRIES`: 최대 재시도 횟수 (기본값: 3)
+
+## 📦 의존성
+
+주요 패키지:
+
+- `requests`: HTTP 요청
+- `pandas`: 데이터 분석
+- `matplotlib`, `seaborn`: 데이터 시각화
+- `APScheduler`: 작업 스케줄링
+- `FastAPI`, `uvicorn`: 웹 대시보드
+- `plotly`: 인터랙티브 차트
+- `python-dotenv`: 환경 변수 관리
+
+전체 목록은 `requirements.txt`를 참조하세요.
+
+## 🛠️ 개발
+
+### 프로젝트 구조 확장
+
+새로운 데이터 소스를 추가하려면:
+
+1. `collectors/` 디렉토리에 새로운 collector 클래스 생성
+2. `collectors/__init__.py`에 추가
+3. `main.py`에 수집 함수 추가
+4. `database/db_manager.py`에 저장 로직 추가 (선택사항)
+
+### 로그 파일
+
+- `scheduler.log`: 스케줄러 작업 로그
+- 데이터베이스: `data/collected_data.db`
+
 ## 📝 라이선스
 
 MIT License
@@ -165,4 +268,8 @@ MIT License
 ## 🤝 기여
 
 이슈 및 풀 리퀘스트를 환영합니다!
+
+## 📚 추가 문서
+
+- [USAGE.md](USAGE.md) - 상세 사용 가이드
 
